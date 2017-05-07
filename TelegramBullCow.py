@@ -4,7 +4,7 @@ from telegram.ext import Updater, Dispatcher, CommandHandler
 from itertools import permutations
 import random
 
-TOKEN = "331746669:AAEOgF3i6Z9-v0a1LnxUaKULN-C7vJS4cXc"
+TOKEN = ""
 
 code_set = set(''.join(i) for i in permutations('1234567890', 4))
 code_tuple = tuple(code_set)
