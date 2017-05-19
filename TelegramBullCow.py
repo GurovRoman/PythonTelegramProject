@@ -62,7 +62,7 @@ def start_game(bot, update, chat_data, mode):
             'A random 4-digit number without repeating digits was picked.\n'
             'To make a guess, simply reply to this message: `<number>`',
             reply_markup=forcereply.ForceReply(),  parse_mode='Markdown')
-    if mode == 'hide':
+    elif mode == 'hide':
         chat_data['in_progress'] = 1
         chat_data['gamemode'] = 'hide'
         chat_data['codes'] = code_set.copy()
