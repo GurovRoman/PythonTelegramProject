@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from telegram.ext import Updater, Dispatcher, CommandHandler
+from telegram.ext import Updater, Dispatcher, CommandHandler, MessageHandler, filters
+from telegram import forcereply
 from itertools import permutations
 import random
-
-TOKEN = ""
+import logging
 
 code_set = set(''.join(i) for i in permutations('1234567890', 4))
 code_tuple = tuple(code_set)
@@ -16,8 +16,8 @@ answer_list = (
     "It got it, the number is `{0}`",
     "It's too early to be 100% sure, but the number `{0}` seems quite suspicious to me.",
     "This one is easy: `{0}`",
-    "I'm capable of reading your thoughts, but our astral connection is weak. "\
-    "You are either thinking of Shrek or `{0}`",
+    "I'm capable of reading your thoughts, but our astral connection is weak."
+    " You are either thinking of Shrek or `{0}`",
     "Stop right there, criminal scum! Pay the court a fine or serve your sentence, your stolen `{0}` is now forfeit",
     "I used to be an adventurer like you, then I took an `{0}` in the knee.",
     "`{0}`. `{0}`! `{0}`?")
@@ -33,58 +33,57 @@ def bc(code, guess):
     return a
 
 
-def start(bot, update, chat_data):
+def start(bot, update):
     update.message.reply_text(
         'I\'m a bot for the Bulls and Cows game.\n'
         'To get a list of possible commands, please type `/help`', parse_mode='Markdown')
 
 
-def start_game(bot, update, chat_data):
-    message = update.message.text.split()
-    if len(message) != 2:
-        update.message.reply_text('Usage: `/start_game <guess|hide>`', parse_mode='Markdown')
-        return
+def start_game_guess(bot, update, chat_data):
+    start_game(bot, update, chat_data, 'guess')
+
+
+def start_game_hide(bot, update, chat_data):
+    start_game(bot, update, chat_data, 'hide')
+
+
+def start_game(bot, update, chat_data, mode):
     if chat_data.get('in_progress') == 1:
         update.message.reply_text(
             'There is already a game in progress.\n'
             'If you really want to abandon current game, please use `/end_game`.', parse_mode='Markdown')
         return
-    if message[1] == 'guess':
+    if mode == 'guess':
         chat_data['in_progress'] = 1
         chat_data['gamemode'] = 'guess'
         chat_data['number'] = random.choice(code_tuple)
         chat_data['guesses'] = 0
         update.message.reply_text(
             'A random 4-digit number without repeating digits was picked.\n'
-            'To make a guess, use `/ask <number>`', parse_mode='Markdown')
-    if message[1] == 'hide':
+            'To make a guess, simply reply to this message: `<number>`',
+            reply_markup=forcereply.ForceReply(),  parse_mode='Markdown')
+    if mode == 'hide':
         chat_data['in_progress'] = 1
         chat_data['gamemode'] = 'hide'
         chat_data['codes'] = code_set.copy()
         chat_data['guesses'] = 1
         update.message.reply_text(
             'Think of a 4-digit number without repeating digits.\n'
-            'You\'ll have to give a number of bulls and cows for every guess I made.'
-            'To give an answer, use `/answer <bulls> <cows>`', parse_mode='Markdown')
+            'You\'ll have to give a number of bulls and cows for every guess I made.\n'
+            'To give an answer, simply reply to this message: `<bulls> <cows>`',
+            reply_markup=forcereply.ForceReply(), parse_mode='Markdown')
         code = random.choice(code_tuple)
         update.message.reply_text("Okay, let's begin with `{0}`".format(code), parse_mode='Markdown')
         chat_data.get('codes').remove(code)
         chat_data["last_code"] = code
-    else:
-        update.message.reply_text('Usage: `/start_game <"guess"|"hide">`', parse_mode='Markdown')
 
 
 def ask(bot, update, chat_data):
-    if chat_data.get('in_progress') != 1 or chat_data.get('gamemode') != 'guess':
-        update.message.reply_text(
-            'This command should be used in `guess` gamemode.\n'
-            'Type `/start_game guess`', parse_mode='Markdown')
-        return
     message = update.message.text.split()
-    if len(message) != 2 or len(message[1]) != 4 or not message[1].isdigit():
+    if len(message) != 1 or len(message[0]) != 4 or not message[0].isdigit():
         update.message.reply_text('Please, type a 4-digit number')
         return
-    number = message[1]
+    number = message[0]
     chat_data['guesses'] += 1
     bulls, cows = bc(chat_data['number'], number)
     if bulls == 4:
@@ -96,20 +95,16 @@ def ask(bot, update, chat_data):
     else:
         update.message.reply_text(
             'Bulls: ' + str(bulls)
-            + '\nCows: ' + str(cows))
+            + '\nCows: ' + str(cows),
+            reply_markup=forcereply.ForceReply())
 
 
 def answer(bot, update, chat_data):
-    if chat_data.get('in_progress') != 1 or chat_data.get('gamemode') != 'hide':
-        update.message.reply_text(
-            'This command should be used in `hide` gamemode.\n'
-            'Type `/start_game hide`', parse_mode='Markdown')
-        return
     message = update.message.text.split()
-    if len(message) != 3 or not message[1].isdigit() or not message[2].isdigit():
+    if len(message) != 2 or not message[0].isdigit() or not message[1].isdigit():
         update.message.reply_text('Please, type two numbers')
         return
-    bulls, cows = int(message[1]), int(message[2])
+    bulls, cows = int(message[0]), int(message[1])
     if bulls not in range(0, 5) or cows not in range(0, 5):
         update.message.reply_text('The numbers must be in range [0, 4]')
         return
@@ -127,7 +122,8 @@ def answer(bot, update, chat_data):
             code = chat_data.get('codes').pop()
             chat_data['last_code'] = code
             chat_data['guesses'] += 1
-            update.message.reply_text(random.choice(answer_list).format(code), parse_mode='Markdown')
+            update.message.reply_text(random.choice(answer_list).format(code),
+                                      reply_markup=forcereply.ForceReply(), parse_mode='Markdown')
         else:
             update.message.reply_text(
                 'Your answers are contradictive.\n'
@@ -135,6 +131,7 @@ def answer(bot, update, chat_data):
                 'It took me ' + str(chat_data['guesses']) + ' '
                 + ('guesses', 'guess')[chat_data['guesses'] == 1]
                 + ' to find out that you were wasting my time.')
+            chat_data['in_progress'] = 0
 
 
 def end_game(bot, update, chat_data):
@@ -150,21 +147,48 @@ def end_game(bot, update, chat_data):
 def bot_help(bot, update):
     update.message.reply_text(
         'Available commands:\n'
-        '`/start_game <"guess"|"hide">` - starts game in selected mode\n'
-        '`/ask <4-digit number>` - try to guess the number in `guess` mode\n'
-        '`/answer <bulls> <cows>` - tell the amount of bulls and cows in `hide` mode\n'
+        '`/start_game_guess` - starts game in `guess` mode\n'
+        '`/start_game_hide` - starts game in `hide` mode\n'
         '`/end_game` - ends current game, allowing to begin a new one', parse_mode='Markdown')
 
 
+def parse_input(bot, update, chat_data):
+    if chat_data.get('in_progress') == 1:
+        if chat_data.get('gamemode') == 'guess':
+            ask(bot, update, chat_data)
+        elif chat_data.get('gamemode') == 'hide':
+            answer(bot, update, chat_data)
+    else:
+        update.message.reply_text(
+            'There is no game in progress.\n'
+            'Type `/help` for information on how to start one', parse_mode='Markdown')
+
+
 def main():
+    token_path = "token"
+
+    try:
+        token_file = open(token_path, "r")
+    except:
+        token_file = open(token_path, "w+")
+
+    TOKEN = token_file.readline()[0:-1]
+    token_file.close()
+    if (TOKEN == ""):
+        print("Please, put token into the '" + token_path + "' file")
+        return
+
     updater = Updater(TOKEN)
 
-    updater.dispatcher.add_handler(CommandHandler('start', start, pass_chat_data=True))
-    updater.dispatcher.add_handler(CommandHandler('start_game', start_game, pass_chat_data=True))
-    updater.dispatcher.add_handler(CommandHandler('ask', ask, pass_chat_data=True))
-    updater.dispatcher.add_handler(CommandHandler('answer', answer, pass_chat_data=True))
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+    updater.dispatcher.add_handler(CommandHandler('start', start))
+    updater.dispatcher.add_handler(CommandHandler('start_game_guess', start_game_guess, pass_chat_data=True))
+    updater.dispatcher.add_handler(CommandHandler('start_game_hide', start_game_hide, pass_chat_data=True))
     updater.dispatcher.add_handler(CommandHandler('end_game', end_game, pass_chat_data=True))
     updater.dispatcher.add_handler(CommandHandler('help', bot_help))
+    updater.dispatcher.add_handler(MessageHandler(filters.Filters.all, parse_input, pass_chat_data=True))
 
     updater.start_polling()
 
