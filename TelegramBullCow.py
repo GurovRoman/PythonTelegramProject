@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
-from telegram.ext import Updater, Dispatcher, CommandHandler, MessageHandler, filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 from telegram import forcereply
 from itertools import permutations
 import random
@@ -36,7 +36,8 @@ def bc(code, guess):
 def start(bot, update):
     update.message.reply_text(
         'I\'m a bot for the Bulls and Cows game.\n'
-        'To get a list of possible commands, please type `/help`', parse_mode='Markdown')
+        'To get a list of possible commands, please type `/help`',
+        parse_mode='Markdown')
 
 
 def start_game_guess(bot, update, chat_data):
@@ -51,7 +52,8 @@ def start_game(bot, update, chat_data, mode):
     if chat_data.get('in_progress') == 1:
         update.message.reply_text(
             'There is already a game in progress.\n'
-            'If you really want to abandon current game, please use `/end_game`.', parse_mode='Markdown')
+            'If you really want to abandon current game, please use `/end_game`.',
+            parse_mode='Markdown')
         return
     if mode == 'guess':
         chat_data['in_progress'] = 1
@@ -61,7 +63,7 @@ def start_game(bot, update, chat_data, mode):
         update.message.reply_text(
             'A random 4-digit number without repeating digits was picked.\n'
             'To make a guess, simply reply to this message: `<number>`',
-            reply_markup=forcereply.ForceReply(),  parse_mode='Markdown')
+            reply_markup=forcereply.ForceReply(), parse_mode='Markdown')
     elif mode == 'hide':
         chat_data['in_progress'] = 1
         chat_data['gamemode'] = 'hide'
@@ -90,12 +92,13 @@ def ask(bot, update, chat_data):
         chat_data['in_progress'] = 0
         update.message.reply_text(
             'You have guessed the number!\n'
-            + 'It took you ' + str(chat_data['guesses']) + ' '
-            + ('guesses.', 'guess! Impossible!')[chat_data['guesses'] == 1])
+            'It took you {} {}'.format(
+                chat_data['guesses'],
+                ('guesses.', 'guess! Impossible!')[chat_data['guesses'] == 1]))
     else:
         update.message.reply_text(
-            'Bulls: ' + str(bulls)
-            + '\nCows: ' + str(cows),
+            'Bulls: {}\n'
+            'Cows: {}'.format(bulls, cows),
             reply_markup=forcereply.ForceReply())
 
 
@@ -112,8 +115,9 @@ def answer(bot, update, chat_data):
         chat_data['in_progress'] = 0
         update.message.reply_text(
             'I have guessed your number!\n'
-            'It took me ' + str(chat_data['guesses']) + ' '
-            + ('guesses.', 'guess! GERMAN SCIENCE IS THE BEST IN THE WORLD!')[chat_data['guesses'] == 1])
+            'It took me {} {}'.format(
+                chat_data['guesses'],
+                ('guesses.', 'guess! GERMAN SCIENCE IS THE BEST IN THE WORLD!')[chat_data['guesses'] == 1]))
     else:
         for code in chat_data.get('codes').copy():
             if [bulls, cows] != bc(code, chat_data.get('last_code')):
@@ -128,9 +132,10 @@ def answer(bot, update, chat_data):
             update.message.reply_text(
                 'Your answers are contradictive.\n'
                 'Try being less of a liar next time.\n'
-                'It took me ' + str(chat_data['guesses']) + ' '
-                + ('guesses', 'guess')[chat_data['guesses'] == 1]
-                + ' to find out that you were wasting my time.')
+                'It took me {} {} to find out that '
+                'you were wasting my time.'.format(
+                    chat_data['guesses'],
+                    ('guesses', 'guess')[chat_data['guesses'] == 1]))
             chat_data['in_progress'] = 0
 
 
@@ -141,7 +146,7 @@ def end_game(bot, update, chat_data):
     chat_data['in_progress'] = 0
     update.message.reply_text('You have left the game.')
     if chat_data['gamemode'] == 'guess':
-        update.message.reply_text('The number was: ' + chat_data['number'])
+        update.message.reply_text('The number was: {}'.format(chat_data['number']))
 
 
 def bot_help(bot, update):
@@ -169,16 +174,16 @@ def main():
 
     try:
         token_file = open(token_path, "r")
-    except:
+    except IOError:
         token_file = open(token_path, "w+")
 
-    TOKEN = token_file.readline()[0:-1]
+    token = token_file.readline()[0:-1]
     token_file.close()
-    if (TOKEN == ""):
-        print("Please, put token into the '" + token_path + "' file")
+    if not token:
+        print("Please, put token into the '{}' file".format(token_path))
         return
 
-    updater = Updater(TOKEN)
+    updater = Updater(token)
 
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
