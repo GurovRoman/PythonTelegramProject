@@ -177,7 +177,7 @@ def main():
     except IOError:
         token_file = open(token_path, "w+")
 
-    token = token_file.readline()[0:-1]
+    token = token_file.readline().strip()
     token_file.close()
     if not token:
         print("Please, put token into the '{}' file".format(token_path))
